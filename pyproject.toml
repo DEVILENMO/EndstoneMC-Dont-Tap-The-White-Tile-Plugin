@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "endstone_arc_dtwt"
+version = "0.0.1"
+dependencies = []
+authors = [
+    { name = "DEVILENMO", email = "DEVILENMO@gmail.com" },
+]
+description = "ARC Don't Tap the White Tile mini game plugin."
+
+[project.entry-points."endstone"]
+arc_dtwt = "endstone_arc_dtwt:ARCDTWTPlugin"
