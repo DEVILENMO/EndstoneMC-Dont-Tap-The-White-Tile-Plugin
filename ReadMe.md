@@ -2,6 +2,11 @@
 
 [English](#English) | [中文](#中文)
 
+<div align="center">
+    <img src="./demo.gif" alt="Game Demo">
+    <p><em>Gameplay Demonstration / 游戏演示</em></p>
+</div>
+
 # English
 
 ## Introduction
@@ -44,7 +49,7 @@ TOTAL_BLACK_TILE_NUM=20      # Total rows to clear in each game
 - Right-click the bottom-left corner of the screen
 - Right-click the top-right corner
 - Right-click the trigger block
-5. The screen will turn white when setup is complete
+5. A hint message will be shown white when setup is complete
 6. Break the trigger block to start playing
 
 # 中文
@@ -90,5 +95,5 @@ TOTAL_BLACK_TILE_NUM=20      # 每局游戏需要消除的总行数
 - 右键点击屏幕左下角
 - 右键点击屏幕右上角
 - 右键点击触发方块
-5. 设置完成后屏幕会变为白色
+5. 设置完成后会有提示
 6. 打碎触发方块即可开始游戏
