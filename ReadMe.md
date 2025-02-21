@@ -21,7 +21,7 @@ ARC Don't Tap The White Tile is a classic mini-game plugin for Minecraft Bedrock
 ## Installation
 1. Place the plugin file in your server's plugins folder
 2. Use /reload command in server
-3. Configuration files will be automatically generated in `[server_root]/config/ARCDTWT/`
+3. Configuration files will be automatically generated in `[server_root]/plugins/ARCDTWT/`
 
 ## Configuration
 ### Files Structure
@@ -66,7 +66,7 @@ ARC别踩白块是一个经典的Minecraft基岩版服务器小游戏插件。�
 ## 安装
 1. 将插件文件放入服务器插件文件夹
 2. 启动/重启服务器
-3. 配置文件将自动生成在`[服务器根目录]/config/ARCDTWT/`下
+3. 配置文件将自动生成在`[服务器根目录]/plugins/ARCDTWT/`下
 
 ## 配置
 

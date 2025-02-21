@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-MAIN_PATH = 'config/ARCDTWT'
+MAIN_PATH = 'plugins/ARCDTWT'
 
 class LanguageManager:
     language_dict = {}  # Class variable shared across instances

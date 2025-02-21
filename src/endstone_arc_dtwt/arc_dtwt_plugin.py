@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
-from endstone import ColorFormat
+from endstone import ColorFormat, Player
 from endstone.command import Command, CommandSender
 from endstone.event import event_handler, PlayerInteractEvent, BlockBreakEvent
 from endstone.plugin import Plugin
@@ -14,7 +14,7 @@ from endstone_arc_dtwt.DatabaseManager import DatabaseManager
 from endstone_arc_dtwt.LanguageManager import LanguageManager
 from endstone_arc_dtwt.SettingManager import SettingManager
 
-MAIN_PATH = 'config/ARCDTWT'
+MAIN_PATH = 'plugins/ARCDTWT'
 
 class ARCDTWTPlugin(Plugin):
     api_version = "0.5"
@@ -84,6 +84,9 @@ class ARCDTWTPlugin(Plugin):
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         if command.name == "dtwt":
+            if not isinstance(sender, Player):
+                sender.send_message(f'[ARC DTWT]This command only works for players.')
+                return True
             best_three_record = self.get_leaderboard(3)
             top1_record = 'null-∞' if len(best_three_record) < 1 else f'{best_three_record[0][0]}-{best_three_record[0][1]}'
             top2_record = 'null-∞' if len(best_three_record) < 2 else f'{best_three_record[1][0]}-{best_three_record[1][1]}'
@@ -102,6 +105,9 @@ class ARCDTWTPlugin(Plugin):
             sender.send_message(self.language_manager.GetText('DTWT_DESCRIPTION').format(self.total_black_tile_num, top1_record, top2_record, top3_record, sender_record, sender_rank))
             return True
         if command.name == "createdtwt":
+            if not isinstance(sender, Player):
+                sender.send_message(f'[ARC DTWT]This command only works for players.')
+                return True
             if not self.if_in_deploying_state or self.creator_name == sender.name:
                 self.clear_deployment_memory()
                 self.if_in_deploying_state = True
@@ -241,7 +247,7 @@ class ARCDTWTPlugin(Plugin):
             start_seq.append(rg.randint(0, 3))
         self.displayer_game_update(start_seq)
 
-    def end_game(self, if_successful: bool, player):
+    def end_game(self, if_successful: bool, player: Player):
         if if_successful:
             # Set displayer color
             self.display_single_color('lime')
@@ -285,7 +291,7 @@ class ARCDTWTPlugin(Plugin):
             self.displayer_line_update(_, self.current_display_seq[_], new_seq[_])
         self.current_display_seq = new_seq
 
-    def displayer_line_update(self, row: int, current_black_tile_pos, new_black_tile_pos):
+    def displayer_line_update(self, row: int, current_black_tile_pos: int, new_black_tile_pos: int):
         if new_black_tile_pos is None:
             for c in range(4):
                 self.displayer_tile_update(row, c, 'green')

@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-MAIN_PATH = 'config/ARCDTWT'
+MAIN_PATH = 'plugins/ARCDTWT'
 
 class SettingManager:
     setting_dict = {}  # Class variable to store all settings
