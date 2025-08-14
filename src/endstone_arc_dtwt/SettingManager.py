@@ -15,7 +15,11 @@ class SettingManager:
         default_settings = {
             "DEFAULT_LANGUAGE_CODE": "ZH-CN",
             "DATABASE_PATH": "DTWTdata.db",
-            "TOTAL_BLACK_TILE_NUM": "20"
+            "TOTAL_BLACK_TILE_NUM": "20",
+            "DAILY_REWARD_AMOUNT": "500",
+            "FIRST_PLACE_REWARD": "10000",
+            "SECOND_PLACE_REWARD": "5000",
+            "THIRD_PLACE_REWARD": "2500"
         }
 
         # Write default settings to the file

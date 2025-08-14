@@ -1,6 +1,7 @@
 import math
 import random
 import time
+from datetime import datetime, date
 
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
@@ -17,7 +18,7 @@ from endstone_arc_dtwt.SettingManager import SettingManager
 MAIN_PATH = 'plugins/ARCDTWT'
 
 class ARCDTWTPlugin(Plugin):
-    api_version = "0.5"
+    api_version = "0.7"
     commands = {
         "dtwt":
             {
@@ -71,12 +72,49 @@ class ARCDTWTPlugin(Plugin):
         self.player_name = None
         self.current_display_seq = [None for _ in range(5)]
         self.current_black_tile_index = 0
+        # Timeout check
+        self.timeout_check_task = None
+        
+        # Reward settings
+        try:
+            self.daily_reward_amount = int(self.setting_manager.GetSetting('DAILY_REWARD_AMOUNT'))
+        except (ValueError, TypeError):
+            self.daily_reward_amount = 100
+        try:
+            self.first_place_reward = int(self.setting_manager.GetSetting('FIRST_PLACE_REWARD'))
+        except (ValueError, TypeError):
+            self.first_place_reward = 500
+        try:
+            self.second_place_reward = int(self.setting_manager.GetSetting('SECOND_PLACE_REWARD'))
+        except (ValueError, TypeError):
+            self.second_place_reward = 300
+        try:
+            self.third_place_reward = int(self.setting_manager.GetSetting('THIRD_PLACE_REWARD'))
+        except (ValueError, TypeError):
+            self.third_place_reward = 200
+        
+        self.economy_plugin = None
 
     def on_load(self) -> None:
         self.logger.info(f"{ColorFormat.YELLOW}[ARC DTWT]Plugin loaded!")
 
     def on_enable(self) -> None:
         self.register_events(self)
+
+        # Initialize economy plugin - check arc_core first, then umoney
+        try:
+            self.economy_plugin = self.server.plugin_manager.get_plugin('arc_core')
+            if self.economy_plugin is not None:
+                print("[ARC DTWT]Using ARC Core economy system for money rewards.")
+            else:
+                self.economy_plugin = self.server.plugin_manager.get_plugin('umoney')
+                if self.economy_plugin is not None:
+                    print("[ARC DTWT]Using UMoney economy system for money rewards.")
+                else:
+                    print("[ARC DTWT]No supported economy plugin found (arc_core or umoney). Money rewards will not be available.")
+        except Exception as e:
+            print(f"[ARC DTWT]Failed to load economy plugin: {e}. Money rewards will not be available.")
+
         self.logger.info(f"{ColorFormat.YELLOW}[ARC DTWT]Plugin enabled!")
 
     def on_disable(self) -> None:
@@ -88,21 +126,23 @@ class ARCDTWTPlugin(Plugin):
                 sender.send_message(f'[ARC DTWT]This command only works for players.')
                 return True
             best_three_record = self.get_leaderboard(3)
-            top1_record = 'null-∞' if len(best_three_record) < 1 else f'{best_three_record[0][0]}-{best_three_record[0][1]}'
-            top2_record = 'null-∞' if len(best_three_record) < 2 else f'{best_three_record[1][0]}-{best_three_record[1][1]}'
-            top3_record = 'null-∞' if len(best_three_record) < 3 else f'{best_three_record[2][0]}-{best_three_record[2][1]}'
+            top1_record = 'null-∞' if len(best_three_record) < 1 else f'{best_three_record[0][0]}-{round(best_three_record[0][1], 3)} '
+            top2_record = 'null-∞' if len(best_three_record) < 2 else f'{best_three_record[1][0]}-{round(best_three_record[1][1], 3)} '
+            top3_record = 'null-∞' if len(best_three_record) < 3 else f'{best_three_record[2][0]}-{round(best_three_record[2][1], 3)} '
             sender_player = self.server.get_player(sender.name)
             if sender_player is not None:
                 sender_record = self.get_player_best_time(sender_player.xuid)
                 if sender_record is None:
                     sender_record = '∞'
+                else:
+                    sender_record = round(sender_record, 3)
                 sender_rank = self.get_player_rank(sender_player.xuid)
                 if sender_rank is None:
                     sender_rank = '∞'
             else:
                 sender_record = '∞'
                 sender_rank = '∞'
-            sender.send_message(self.language_manager.GetText('DTWT_DESCRIPTION').format(self.total_black_tile_num, top1_record, top2_record, top3_record, sender_record, sender_rank))
+            sender.send_message(self.language_manager.GetText('DTWT_DESCRIPTION').replace('\\n', '\n').format(self.total_black_tile_num, top1_record, top2_record, top3_record, sender_record, sender_rank))
             return True
         if command.name == "createdtwt":
             if not isinstance(sender, Player):
@@ -215,13 +255,13 @@ class ARCDTWTPlugin(Plugin):
                     self.start_game(event.player.name)
                     event.player.send_message(self.language_manager.GetText('DTWT_GAME_START_HINT'))
                     self.server.broadcast_message(self.language_manager.GetText('DTWT_GAME_START_BROADCAST').format(event.player.name))
-                    event.cancelled = True
+                    event.is_cancelled = True
                     return
                 return
             else:
                 if event.block.location.x == self.current_facility['trigger_pos'][0] and event.block.location.y == self.current_facility['trigger_pos'][1] and event.block.location.z == self.current_facility['trigger_pos'][2]:
                     event.player.send_message(self.language_manager.GetText('DTWT_GAME_ALREADY_STARTED_MESSAGE').format(self.player_name))
-                    event.cancelled = True
+                    event.is_cancelled = True
                     return
                 return
 
@@ -239,6 +279,13 @@ class ARCDTWTPlugin(Plugin):
         self.player_name = player_name
         self.game_start_time = time.time()
 
+        # Set 30 seconds timeout
+        self.timeout_check_task = self.server.scheduler.run_task(
+            self,
+            lambda: self.check_game_timeout(),
+            delay=30 * 20  # 30秒后强制结束游戏（转换为游戏tick，1秒=20tick）
+        )
+
         # Random generate first 5 rows
         start_seq = []
         for _ in range(5):
@@ -251,11 +298,30 @@ class ARCDTWTPlugin(Plugin):
         if if_successful:
             # Set displayer color
             self.display_single_color('lime')
-            # Update record
+            # Update record and check for rewards
             time_cost = time.time() - self.game_start_time
-            self.update_player_record(player.xuid, player.name, time_cost)
+            
+            # Check daily reward before updating record
+            can_get_daily_reward = self.can_receive_daily_reward(player.xuid)
+            
+            # Update player record
+            update_success, is_new_record = self.update_player_record(player.xuid, player.name, time_cost)
+            
+            # Give daily reward if eligible
+            if can_get_daily_reward:
+                self.give_money_to_player(player, self.daily_reward_amount, "每日首次完成")
+            
+            # Check for rank reward if it's a new record
+            if is_new_record:
+                new_rank = self.get_player_rank(player.xuid)
+                if new_rank is not None and new_rank <= 3:
+                    self.check_and_give_rank_reward(player, new_rank)
+            
             # Broadcast
-            self.server.broadcast_message(self.language_manager.GetText('DTWT_PLAYER_WIN_BROADCAST').format(player.name, time_cost, self.get_player_rank(player.xuid)))
+            self.server.broadcast_message(self.language_manager.GetText('DTWT_PLAYER_WIN_BROADCAST').format(player.name,
+                                                                                                            round(time_cost, 3),
+                                                                                                            round(self.get_player_best_time(player.xuid), 3),
+                                                                                                            self.get_player_rank(player.xuid)))
         else:
             # Set displayer color
             self.display_single_color('red')
@@ -267,6 +333,24 @@ class ARCDTWTPlugin(Plugin):
         self.game_start_time = None
         self.current_display_seq = [None for _ in range(5)]
         self.current_black_tile_index = 0
+        # Cancel timeout check task if exists
+        if self.timeout_check_task is not None:
+            try:
+                self.timeout_check_task.cancel()
+            except:
+                pass
+            self.timeout_check_task = None
+
+    def check_game_timeout(self):
+        """30秒超时强制结束游戏"""
+        if not self.if_in_game or self.game_start_time is None:
+            return
+        
+        # 30秒到了，强制结束游戏
+        player = self.server.get_player(self.player_name)
+        if player is not None:
+            player.send_message(self.language_manager.GetText('DTWT_GAME_TIMEOUT_MESSAGE'))
+            self.end_game(False, player)
 
     # Avoid interact jitter
     def check_if_valid_click(self, player_name: str) -> bool:
@@ -346,14 +430,16 @@ class ARCDTWTPlugin(Plugin):
             return None
 
     # Player record
-    def update_player_record(self, xuid: str, player_name: str, time: float) -> bool:
+    def update_player_record(self, xuid: str, player_name: str, time: float) -> tuple[bool, bool]:
         """
         更新玩家记录
         :param xuid: 玩家的XUID
         :param player_name: 玩家名称
         :param time: 完成用时
-        :return: 是否更新成功
+        :return: (是否更新成功, 是否破纪录)
         """
+        today = date.today().isoformat()
+        
         # 查询现有记录
         existing_record = self.db_manager.query_one(
             "SELECT * FROM player_records WHERE xuid = ?",
@@ -362,20 +448,30 @@ class ARCDTWTPlugin(Plugin):
 
         if existing_record is None:
             # 玩家不存在，插入新记录
-            return self.db_manager.insert("player_records", {
+            success = self.db_manager.insert("player_records", {
                 "xuid": xuid,
                 "player_name": player_name,
-                "best_record": time
+                "best_record": time,
+                "last_play_date": today
             })
-        elif time < existing_record["best_record"]:
-            # 玩家存在且新记录更好，更新记录
-            return self.db_manager.update(
+            return success, True  # 新玩家，算作破纪录
+        else:
+            # 更新最后游戏日期
+            update_data = {"player_name": player_name, "last_play_date": today}
+            is_new_record = False
+            
+            if time < existing_record["best_record"]:
+                # 新记录更好，更新记录
+                update_data["best_record"] = time
+                is_new_record = True
+            
+            success = self.db_manager.update(
                 "player_records",
-                {"player_name": player_name, "best_record": time},
+                update_data,
                 "xuid = ?",
                 (xuid,)
             )
-        return False  # 现有记录更好，不更新
+            return success, is_new_record
 
     def get_player_best_time(self, xuid: str) -> Optional[float]:
         """
@@ -434,6 +530,66 @@ class ARCDTWTPlugin(Plugin):
         result = self.db_manager.query_one(sql)
         return result["avg_time"] if result else None
 
+    def can_receive_daily_reward(self, xuid: str) -> bool:
+        """
+        检查玩家是否可以获得每日奖励
+        :param xuid: 玩家XUID
+        :return: 是否可以获得每日奖励
+        """
+        today = date.today().isoformat()
+        
+        result = self.db_manager.query_one(
+            "SELECT last_play_date FROM player_records WHERE xuid = ?",
+            (xuid,)
+        )
+        
+        if result is None:
+            return True  # 新玩家，可以获得奖励
+        
+        last_play_date = result.get("last_play_date")
+        return last_play_date != today  # 如果不是今天玩的，可以获得奖励
+
+    def give_money_to_player(self, player: Player, amount: int, reason: str) -> bool:
+        """
+        给玩家金钱奖励
+        :param player: 玩家对象
+        :param amount: 金钱数量
+        :param reason: 奖励原因
+        :return: 是否成功
+        """
+        if self.economy_plugin is None:
+            player.send_message(self.language_manager.GetText('DTWT_ECONOMY_NOT_AVAILABLE'))
+            return False
+        
+        try:
+            # 使用umoney插件API给玩家金钱
+            self.economy_plugin.api_change_player_money(player.name, amount)
+            
+            # 根据奖励类型发送不同的消息
+            if "每日" in reason:
+                player.send_message(self.language_manager.GetText('DTWT_DAILY_REWARD_MESSAGE').format(amount))
+            elif reason.isdigit():
+                # reason 是排名数字，比如 "1", "2", "3"
+                player.send_message(self.language_manager.GetText('DTWT_RANK_REWARD_MESSAGE').format(reason, amount))
+            return True
+        except Exception as e:
+            self.logger.warning(f"[ARC DTWT]Failed to give money to player {player.name}: {e}")
+            player.send_message(self.language_manager.GetText('DTWT_ECONOMY_NOT_AVAILABLE'))
+            return False
+
+    def check_and_give_rank_reward(self, player: Player, new_rank: int) -> None:
+        """
+        检查并发放排名奖励
+        :param player: 玩家对象
+        :param new_rank: 新排名
+        """
+        if new_rank == 1:
+            self.give_money_to_player(player, self.first_place_reward, str(new_rank))
+        elif new_rank == 2:
+            self.give_money_to_player(player, self.second_place_reward, str(new_rank))
+        elif new_rank == 3:
+            self.give_money_to_player(player, self.third_place_reward, str(new_rank))
+
     # Static function tools
     @staticmethod
     def judge_if_number_in_range(range_a, range_b, number) -> bool:
@@ -464,7 +620,8 @@ class ARCDTWTPlugin(Plugin):
         self.db_manager.create_table("player_records", {
             "xuid": "TEXT PRIMARY KEY",
             "player_name": "TEXT NOT NULL",
-            "best_record": "REAL NOT NULL"
+            "best_record": "REAL NOT NULL",
+            "last_play_date": "TEXT"
         })
 
     def update_game_facility(self, screen_start: tuple, screen_end: tuple, trigger_pos: tuple) -> bool:

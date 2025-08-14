@@ -8,7 +8,7 @@ class LanguageManager:
 
     # 中文默认语言文件内容
     ZH_CN_CONTENT = {
-        'DTWT_DESCRIPTION': '[弧光·别踩白块]别踩白块是一个趣味十足的小游戏，玩家需要快速点击黑色方块，每当点击一个黑色方块时，其所在的整行会被清除。游戏的目标是尽快完成消除{0}行黑色方块。插件内置计时功能，用于记录玩家完成任务的用时长短，最终根据时间排名决出最快的玩家！§r§f排行榜：§r§f1.{1}§r§f2.{2}§r§f3.{3}§r§f你的最佳纪录：§r§f用时：{4}§r§f排名：{5}',
+        'DTWT_DESCRIPTION': '[弧光·别踩白块]别踩白块是一个趣味十足的小游戏，玩家需要快速点击黑色方块，每当点击一个黑色方块时，其所在的整行会被清除。游戏的目标是尽快完成消除{0}行黑色方块。插件内置计时功能，用于记录玩家完成任务的用时长短，最终根据时间排名决出最快的玩家！\\n排行榜：\\n1.{1}\\n2.{2}\\n3.{3}\\n你的最佳纪录：\\n用时：{4}\\n排名：{5}',
         'DTWT_CREATE_HINT1': '[弧光·别踩白块]开始配置别踩白块小游戏，请点击作为小游戏显示屏左下角的起点方块！',
         'DTWT_CREATE_DISPLAYER_START_CORNER_SET_MESSAGE': '[弧光·别踩白块]起点方块配置成功，坐标：维度{0}',
         'DTWT_CREATE_HINT2': '[弧光·别踩白块]请点击作为小游戏显示屏右上角的终点方块！',
@@ -27,7 +27,11 @@ class LanguageManager:
         'DTWT_PLAYER_CLICKED_INVALID_SCREEN_POS_MESSAGE': '[弧光·别踩白块]您正处于别踩白块小游戏中，请点击游戏设施屏幕位置！',
         'DTWT_PLAYER_CLICKED_WRONG_ROW_MESSGAE': '[弧光·别踩白块]请点击最下方那一行的黑色方块！',
         'DTWT_PLAYER_GAME_OVER_BROADCAST': '[弧光·别踩白块]玩家{0}游戏失败了，大家千万不要嘲笑他哟~',
-        'DTWT_PLAYER_WIN_BROADCAST': '[弧光·别踩白块]玩家{0}成功通关别踩白块小游戏，用时{1}秒，用时记录排名为~第{2}名！'
+        'DTWT_PLAYER_WIN_BROADCAST': '[弧光·别踩白块]玩家{0}成功通关别踩白块小游戏，用时{1}秒，个人最佳纪录{2}秒，最佳排名为~第{3}名！',
+        'DTWT_GAME_TIMEOUT_MESSAGE': '[弧光·别踩白块]游戏超时！时间限制为30秒，挑战失败！',
+        'DTWT_DAILY_REWARD_MESSAGE': '[弧光·别踩白块]恭喜获得每日首次完成奖励：{0}元！',
+        'DTWT_RANK_REWARD_MESSAGE': '[弧光·别踩白块]恭喜你突破了第{0}名的排行记录，获得了奖金{1}元！',
+        'DTWT_ECONOMY_NOT_AVAILABLE': '[弧光·别踩白块]经济系统不可用，无法发放奖金。'
     }
 
     def __init__(self, default_language_code):
